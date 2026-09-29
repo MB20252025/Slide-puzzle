@@ -66,7 +66,7 @@ $('tray').innerHTML=T.map((t,k)=>`<div class="slot" id="s${k}">${svg(t[2])}</div
 T.forEach(t=>{const e=document.createElement('div');e.className='pc';e.innerHTML=svg(t[2]);bd.appendChild(e);pcs.push(e)});
 B.forEach((b,i)=>{const e=document.createElement('div');e.className='blk';e.dataset.i=i;
 const im=new Image();
-im.src='block'+(i+1)+'.png';
+im.src='block'+(i+1)+'.jpg';
 im.alt='';im.draggable=false;
 e.appendChild(im);
 bd.appendChild(e);els.push(e)});
