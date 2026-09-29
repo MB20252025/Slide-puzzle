@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Weighing Scale — Whitby Bookcase</title>
+<style>
+:root{
+  --frame: 18px;
+  --gold: #d9b26a;
+  --gold-bright: #f4dda6;
+}
+
+*{ box-sizing: border-box; }
+
+html,body{
+  margin:0; height:100%;
+  overflow:hidden;
+  background:#070504;
+  font-family: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+  color:#e6d9bd;
+  -webkit-tap-highlight-color: transparent;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ============ STAGE ============ */
+.stage{
+  position:fixed; inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:10px;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(84,54,24,.30) 0%, rgba(10,7,4,0) 62%),
+    radial-gradient(ellipse at 50% 118%, rgba(120,80,30,.20) 0%, rgba(0,0,0,0) 60%),
+    #070504;
+}
+
+/* ============ HUD ============ */
+.hud{ text-align:center; flex:0 0 auto; }
+.hud h1{
+  margin:0;
+  font-size: clamp(13px, 3.4vw, 17px);
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  font-weight:400;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(217,178,106,.35);
+}
+.hud p{
+  margin:5px 0 0;
+  font-size: clamp(9px, 2.3vw, 11px);
+  letter-spacing:.10em;
+  color:#8d7c60;
+  font-style:italic;
+}
+.slots{
+  display:flex;
+  gap:9px;
+  justify-content:center;
+  margin-top:9px;
+}
+.slot{
+  width:42px; height:42px;
+  border-radius:9px;
+  border:1px solid rgba(160,124,70,.32);
+  background: rgba(20,14,8,.75);
+  box-shadow: inset 0 0 14px rgba(0,0,0,.9);
+  display:flex; align-items:center; justify-content:center;
+  transition: border-color .45s ease, box-shadow .45s ease, background .45s ease;
+}
+.slot svg{
+  width:78%; height:78%;
+  opacity:0;
+  transform: scale(.35) rotate(-18deg);
+  transition: opacity .45s ease, transform .5s cubic-bezier(.2,1.6,.4,1);
+}
+.slot.filled{
+  border-color: rgba(232,196,124,.85);
+  background: rgba(62,42,16,.8);
+  box-shadow:
+    inset 0 0 16px rgba(255,200,120,.16),
+    0 0 20px rgba(220,170,90,.30);
+}
+.slot.filled svg{ opacity:1; transform: scale(1) rotate(0deg); }
+
+/* ============ CABINET ============ */
+.cabinet{
+  position:relative;
+  flex:0 1 auto;
+  padding: var(--frame);
+  border-radius:10px;
+  background:
+    repeating-linear-gradient(93deg,
+      rgba(0,0,0,.20) 0 2px,
+      rgba(255,255,255,.018) 2px 5px,
+      rgba(0,0,0,0) 5px 14px),
+    repeating-linear-gradient(88deg,
+      rgba(0,0,0,.12) 0 1px,
+      rgba(255,255,255,.012) 1px 21px),
+    linear-gradient(158deg,#5e3d21 0%,#452a13 28%,#2e1a0b 62%,#180d05 100%);
+  box-shadow:
+    0 0 0 2px #120904,
+    0 0 0 3px rgba(150,110,60,.16),
+    0 26px 60px rgba(0,0,0,.9),
+    0 8px 22px rgba(0,0,0,.7),
+    inset 0 2px 0 rgba(255,214,150,.10),
+    inset 0 -4px 12px rgba(0,0,0,.75);
+}
+
+.board{
+  position:relative;
+  height: min(60vh, 96vw);
+  aspect-ratio: 4 / 6;
+  border-radius:3px;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(255,255,255,.012) 0 1px,
+      rgba(0,0,0,0) 1px 9px),
+    radial-gradient(ellipse at 50% 8%, #2b1c0f 0%, #150d06 48%, #090502 100%);
+  box-shadow:
+    inset 0 0 64px rgba(0,0,0,.98),
+    inset 0 0 0 2px #0c0703,
+    inset 0 0 0 3px rgba(120,88,48,.14);
+  touch-action:none;
+}
+
+.layer{ position:absolute; inset:0; }
+
+/* ============ BLOCKS ============ */
+.block{
+  position:absolute;
+  display:flex;
+  padding:2px;
+  z-index:2;
+  cursor:grab;
+  transition: left .17s cubic-bezier(.34,.85,.4,1), top .17s cubic-bezier(.34,.85,.4,1);
+  will-change: left, top;
+}
+.block.h{ flex-direction:row; }
+.block.v{ flex-direction:column; }
+
+.block.dragging{
+  transition:none;
+  cursor:grabbing;
+  z-index:6;
+  filter: brightness(1.14);
+}
+
+.block.target{ z-index:3; }
+
+.block.selected::after{
+  content:'';
+  position:absolute;
+  inset:-2px;
+  border-radius:4px;
+  border:1px solid rgba(230,190,120,.5);
+  box-shadow: 0 0 16px rgba(230,190,120,.32);
+  pointer-events:none;
+}
+
+.block.escaping{
+  transition: left 1s cubic-bezier(.45,0,.6,1), opacity .5s ease .55s;
+  z-index:9;
+  pointer-events:none;
+}
+
+/* ============ BOOKS ============ */
+.book{
+  position:relative;
+  flex:1 1 0;
+  min-width:0; min-height:0;
+  border-radius:2px;
+  overflow:hidden;
+  background: linear-gradient(90deg, var(--c2) 0%, var(--c1) 16%, var(--c1) 84%, var(--c2) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.55),
+    inset -2px 0 5px rgba(0,0,0,.5),
+    inset 2px 0 3px rgba(255,255,255,.05),
+    0 1px 3px rgba(0,0,0,.6);
+}
+.block.h .book + .book{ margin-left:1px; }
+
+.block.v .book{
+  background: linear-gradient(180deg, var(--c2) 0%, var(--c1) 16%, var(--c1) 84%, var(--c2) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.55),
+    inset 0 -2px 5px rgba(0,0,0,.5),
+    inset 0 2px 3px rgba(255,255,255,.05),
+    0 1px 3px rgba(0,0,0,.6);
+}
+.block.v .book + .book{ margin-top:1px; }
+
+.book .bands{
+  position:absolute;
+  inset:7% 10%;
+  background: repeating-linear-gradient(180deg,
+    transparent 0 13%,
+    rgba(226,194,128,.42) 13% 15%,
+    transparent 15% 28%);
+  opacity:.85;
+  pointer-events:none;
+}
+.block.v .book .bands{
+  inset:12% 6%;
+  background: repeating-linear-gradient(90deg,
+    transparent 0 13%,
+    rgba(226,194,128,.42) 13% 15%,
+    transparent 15% 28%);
+}
+
+.book .label{
+  position:absolute;
+  left:16%; right:16%;
+  top:34%; height:26%;
+  border-radius:1px;
+  border:1px solid rgba(226,194,128,.30);
+  background: rgba(0,0,0,.30);
+  box-shadow: inset 0 0 8px rgba(0,0,0,.7);
+  pointer-events:none;
+}
+.block.v .book .label{
+  left:30%; right:30%;
+  top:22%; height:56%;
+}
+
+/* target books — brass bound */
+.block.target .book{
+  background: linear-gradient(90deg,#5c3f10 0%,#b8913f 14%,#f0d79c 48%,#c9a34e 84%,#5c3f10 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(60,40,10,.7),
+    inset -2px 0 6px rgba(0,0,0,.35),
+    inset 2px 0 4px rgba(255,255,255,.18),
+    0 0 18px rgba(240,205,130,.38);
+}
+.block.target .book .bands{
+  background: repeating-linear-gradient(180deg,
+    transparent 0 13%,
+    rgba(90,62,20,.55) 13% 15%,
+    transparent 15% 28%);
+}
+.block.target .book .label{
+  border-color: rgba(90,62,20,.6);
+  background: rgba(60,40,10,.35);
+  box-shadow: inset 0 0 8px rgba(60,40,10,.6);
+}
+
+/* ============ COLLECTIBLES ============ */
+.collectible{
+  position:absolute;
+  width:15%;
+  aspect-ratio:1 / 1;
+  height:auto;
+  transform: translate(-50%,-50%) scale(.15) rotate(-28deg);
+  opacity:0;
+  pointer-events:none;
+  z-index:5;
+  cursor:pointer;
+  filter: drop-shadow(0 0 10px rgba(255,208,130,.65));
+  transition: opacity .45s ease, transform .55s cubic-bezier(.2,1.6,.4,1);
+}
+.collectible svg{ width:100%; height:100%; display:block; }
+
+.collectible.shown{
+  opacity:1;
+  transform: translate(-50%,-50%) scale(1) rotate(0deg);
+  pointer-events:auto;
+}
+.collectible.shown::before{
+  content:'';
+  position:absolute;
+  inset:-14%;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(255,206,130,.32), transparent 68%);
+  animation: pulseGlow 2.1s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes pulseGlow{
+  0%,100%{ opacity:.42; transform:scale(.88); }
+  50%    { opacity:.95; transform:scale(1.14); }
+}
+.collectible.collected{
+  opacity:0;
+  transform: translate(-50%,-50%) scale(1.9);
+  pointer-events:none;
+  transition: opacity .35s ease, transform .4s ease;
+}
+
+/* ============ EXIT ============ */
+.exit{
+  position:absolute;
+  right: calc(-1 * var(--frame));
+  top: 33.3333%;
+  height: 16.6667%;
+  width: var(--frame);
+  border-radius: 0 3px 3px 0;
+  background:#080503;
+  box-shadow: inset 0 0 12px #000, inset 0 0 0 1px #2c1c0c;
+  overflow:hidden;
+  z-index:1;
+  transition: background .6s ease, box-shadow .6s ease;
+}
+.exit .bars{
+  position:absolute; inset:0;
+  background: repeating-linear-gradient(0deg,
+    rgba(190,150,86,.55) 0 2px,
+    transparent 2px 9px);
+  transition: opacity .6s ease;
+}
+.exit .glow{
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse at 22% 50%,
+    rgba(255,216,152,.95),
+    rgba(200,140,60,.4) 48%,
+    transparent 80%);
+  opacity:0;
+  transition: opacity .6s ease;
+}
+.exit.open{
+  background:#1a0f05;
+  box-shadow:
+    0 0 30px rgba(255,200,120,.55),
+    inset 0 0 22px rgba(255,205,140,.4);
+}
+.exit.open .bars{ opacity:0; }
+.exit.open .glow{ opacity:1; }
+
+/* ============ FOOTER ============ */
+.foot{ flex:0 0 auto; }
+.foot button{
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing:.26em;
+  text-transform:uppercase;
+  color: var(--gold);
+  background: rgba(20,14,8,.8);
+  border:1px solid rgba(160,124,70,.45);
+  border-radius:40px;
+  padding:9px 22px;
+  cursor:pointer;
+  transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+.foot button:hover{
+  background: rgba(80,54,20,.9);
+  border-color: rgba(232,196,124,.8);
+  color: var(--gold-bright);
+}
+
+/* ============ WIN ============ */
+.win{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(4,2,1,.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity:0; pointer-events:none;
+  transition: opacity .6s ease;
+  z-index:200;
+  padding:20px;
+}
+.win.show{ opacity:1; pointer-events:auto; }
+.win-card{
+  max-width:340px;
+  text-align:center;
+  padding:32px 26px;
+  border-radius:12px;
+  border:1px solid rgba(180,140,80,.4);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(90,60,24,.55), rgba(14,9,5,.95) 70%),
+    #0d0804;
+  box-shadow: 0 0 60px rgba(220,170,90,.18), inset 0 1px 0 rgba(255,220,160,.12);
+  transform: translateY(14px) scale(.96);
+  transition: transform .6s cubic-bezier(.2,1.3,.4,1);
+}
+.win.show .win-card{ transform: translateY(0) scale(1); }
+.win-card h2{
+  margin:0 0 10px;
+  font-size:15px;
+  letter-spacing:.3em;
+  text-transform:uppercase;
+  font-weight:400;
+  color: var(--gold-bright);
+  text-shadow: 0 0 22px rgba(240,205,130,.5);
+}
+.win-card p{
+  margin:0 0 22px;
+  font-size:12px;
+  font-style:italic;
+  letter-spacing:.06em;
+  color:#a08e6d;
+  line-height:1.6;
+}
+.win-card button{
+  font-family: inherit;
+  font-size:10px;
+  letter-spacing:.28em;
+  text-transform:uppercase;
+  color:#1a1008;
+  background: linear-gradient(180deg,#e8c98a,#b8913f);
+  border:none;
+  border-radius:40px;
+  padding:12px 28px;
+  cursor:pointer;
+  font-weight:700;
+  box-shadow: 0 6px 20px rgba(200,150,70,.3);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.win-card button:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 8px 26px rgba(220,170,90,.45);
+}
+
+@media (max-width: 400px){
+  .slot{ width:36px; height:36px; }
+  .hud p{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <header class="hud">
+    <h1>The Weighing Scale</h1>
+    <p>Recover the three brass parts, then clear the ledger's path.</p>
+    <div class="slots">
+      <div class="slot" data-part="pan"></div>
+      <div class="slot" data-part="beam"></div>
+      <div class="slot" data-part="weight"></div>
+    </div>
+  </header>
+
+  <div class="cabinet">
+    <div class="board" id="board">
+      <div class="layer" id="blocksLayer"></div>
+      <div class="layer" id="collectLayer"></div>
+      <div class="exit" id="exit">
+        <div class="glow"></div>
+        <div class="bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <button id="resetBtn" type="button">Reset Case</button>
+  </footer>
+
+</div>
+
+<div class="win" id="winOverlay">
+  <div class="win-card">
+    <h2>The Scale Is Whole</h2>
+    <p>The brass settles. The ledger slides free — and the vault beyond it opens.</p>
+    <button id="winBtn" type="button">Continue</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     BOARD: 4 columns x 6 rows.  Exit on the right at row 2.
+     ============================================================ */
+  const COLS = 4, ROWS = 6;
+
+  /* Book spine colour pairs (light, dark) */
+  const PALETTE = [
+    ['#7d2d24', '#3a110d'],  // deep red leather
+    ['#28492f', '#102218'],  // forest green
+    ['#463a68', '#20182f'],  // plum
+    ['#6d4a1e', '#31200a'],  // tan calf
+    ['#22405e', '#0e1d2c'],  // navy
+    ['#5a3220', '#28130a'],  // brown
+    ['#3f3b2c', '#1b1810'],  // olive
+    ['#6a2f47', '#301222'],  // maroon
+    ['#2f4a4a', '#132222'],  // teal
+    ['#5c2a5c', '#281228']   // purple
+  ];
+
+  /* ------------------------------------------------------------
+     LEVEL — every block moves as one unit, never rotates.
+     T = the brass ledger (the piece that must reach the exit).
+     ------------------------------------------------------------ */
+  const LEVEL = [
+    { id:'T', r:2, c:0, w:2, h:1, target:true, seed:0 },  // TARGET
+    { id:'P', r:0, c:1, w:2, h:1, seed:2 },               // hides the PAN
+    { id:'A', r:0, c:3, w:1, h:2, seed:4 },               // fixed upper stack
+    { id:'E', r:2, c:2, w:1, h:2, seed:5 },               // hides the BEAM
+    { id:'D', r:2, c
