@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Archivist's Bookcase</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:#d9c58f;font-family:Georgia,'Times New Roman',serif;display:flex;flex-direction:column;align-items:center;padding:10px 8px 24px;
+background:radial-gradient(ellipse at 50% 0%,#5a3a1c 0%,#1d130b 55%,#0a0705 100%),repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 1px,transparent 1px 60px);background-color:#0a0705;user-select:none;-webkit-user-select:none}
+h1{font-size:20px;margin:6px 0 2px;letter-spacing:2px;font-weight:normal;text-shadow:0 0 12px #c9832f88}
+.sub{font-size:12px;opacity:.7;margin-bottom:8px;text-align:center;font-style:italic}
+.hud{display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:13px}
+.tray{display:flex;gap:8px}
+.slot{width:38px;height:38px;border:1px solid #6b4a25;border-radius:6px;background:#1a110a;display:grid;place-items:center;opacity:.9}
+.slot svg{width:28px;height:28px;filter:brightness(.25) grayscale(1);transition:.6s}
+.slot.on{border-color:#c9a24b;box-shadow:0 0 12px #c9a24b99}
+.slot.on svg{filter:none}
+button{font:inherit;color:#d9c58f;background:#2a1a0d;border:1px solid #7a5a2d;border-radius:6px;padding:6px 12px;cursor:pointer}
+.frame{padding:14px 14px 18px;border-radius:8px;position:relative;
+background:repeating-linear-gradient(90deg,rgba(0,0,0,.2) 0 2px,transparent 2px 7px),linear-gradient(#6a4423,#3a2210);
+box-shadow:0 12px 40px #000,inset 0 2px 0 #9a6a38,inset 0 -3px 6px #0008}
+.frame:before{content:"";position:absolute;left:-6px;right:-6px;top:-8px;height:12px;border-radius:4px;background:linear-gradient(#8a5a2e,#4a2c14);box-shadow:0 3px 6px #000a}
+.board{position:relative;touch-action:none;border-radius:3px;overflow:hidden;
+background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 3px,rgba(0,0,0,.2) 3px 9px),#1b1109;box-shadow:inset 0 0 30px #000,inset 0 0 6px #000}
+.board:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:9;background:radial-gradient(ellipse at 50% 30%,transparent 40%,#0007 100%)}
+.pc{position:absolute;left:0;top:0;display:grid;place-items:center;z-index:1;transition:opacity .8s}
+.pc svg{width:80%;height:80%}
+.pc.got svg{animation:sh .9s ease-out forwards}
+.pc.gone{opacity:0}
+@keyframes sh{0%{filter:drop-shadow(0 0 0 #ffd86b)}40%{filter:drop-shadow(0 0 14px #ffd86b);transform:scale(1.25)}100%{filter:drop-shadow(0 0 6px #ffd86b);transform:scale(1)}}
+.blk{position:absolute;left:0;top:0;display:flex;z-index:2;cursor:grab;border-radius:3px;box-shadow:0 3px 6px #000c,0 0 0 1px #0009;transition:transform .16s ease-out,filter .15s;overflow:hidden}
+.blk:hover{filter:brightness(1.15)}
+.blk.drag{transition:none;z-index:5;cursor:grabbing;filter:brightness(1.25)}
+.blk img{display:block;width:100%;height:100%;object-fit:fill;pointer-events:none;-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none}
+#win{position:fixed;inset:0;background:#000c;display:none;place-items:center;z-index:20;text-align:center;padding:20px}
+#win div{max-width:320px;padding:26px;border:1px solid #c9a24b;border-radius:10px;background:#1d130b;box-shadow:0 0 40px #c9a24b55}
+#win h2{margin:0 0 8px;font-weight:normal;color:#ffd86b}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs><linearGradient id="br" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d98a"/><stop offset=".5" stop-color="#b8862e"/><stop offset="1" stop-color="#6e4a14"/></linearGradient></defs></svg>
+<h1>THE ARCHIVIST'S BOOKCASE</h1>
+<div class="sub">Slide the book groups aside. Something brass is hidden behind them.</div>
+<div class="hud"><div class="tray" id="tray"></div><div>Moves <b id="mv">0</b> · Par 22</div><button id="rs">Reset</button></div>
+<div class="frame"><div class="board" id="bd"></div></div>
+<div id="win"><div><h2>The scale is whole</h2><p id="wt"></p><button onclick="init()">Shelve it again</button></div></div>
+<script>
+const B=[[1,2,0,1],[1,3,0,2],[1,3,0,3],[1,3,1,0],[1,3,2,1],[1,1,3,2],[1,3,3,3],[1,1,4,0],[2,1,5,0],[1,3,5,2],[2,2,6,0],[1,3,6,3],[1,2,8,0],[1,2,8,1],[1,1,9,2],[1,1,9,3]];
+const T=[[7,2,'beam'],[6,3,'pan'],[4,3,'weight']];
+const IC={
+beam:'<path d="M4 14h32M20 14v16M13 31h14" stroke="url(#br)" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="20" cy="14" r="4.5" fill="url(#br)"/><circle cx="4" cy="16" r="2.5" fill="url(#br)"/><circle cx="36" cy="16" r="2.5" fill="url(#br)"/>',
+pan:'<path d="M20 4L7 22M20 4l13 18" stroke="url(#br)" stroke-width="2" fill="none"/><path d="M5 22h30c0 8-6 13-15 13S5 30 5 22z" fill="url(#br)"/>',
+weight:'<circle cx="20" cy="9" r="4.5" stroke="url(#br)" stroke-width="2.5" fill="none"/><path d="M14 14h12l6 21H8z" fill="url(#br)"/>'};
+const svg=k=>`<svg viewBox="0 0 40 40">${IC[k]}</svg>`;
+const $=id=>document.getElementById(id);
+let s,pos,moves,got,els,pcs,drag=null;
+function occ(ex){const g=Array.from({length:10},()=>Array(4).fill(-1));B.forEach((b,i)=>{if(i==ex)return;for(let y=0;y<b[1];y++)for(let x=0;x<b[0];x++)g[pos[i][0]+y][pos[i][1]+x]=i});return g}
+function free(i,dr,dc){const g=occ(i),[w,h]=B[i];let[r,c]=pos[i],k=0;for(;;){r+=dr;c+=dc;if(r<0||c<0||r+h>10||c+w>4)break;let ok=1;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(g[r+y][c+x]>=0)ok=0;if(!ok)break;k++}return k}
+function place(i,ox=0,oy=0){els[i].style.transform=`translate(${pos[i][1]*s+2+ox}px,${pos[i][0]*s+2+oy}px)`}
+function layout(){s=Math.max(34,Math.min(88,Math.floor((innerWidth-56)/4),Math.floor((innerHeight-250)/10)));
+const bd=$('bd');bd.style.width=4*s+'px';bd.style.height=10*s+'px';
+B.forEach((b,i)=>{const e=els[i];e.style.width=b[0]*s-4+'px';e.style.height=b[1]*s-4+'px';place(i)});
+T.forEach((t,k)=>{const e=pcs[k];e.style.width=e.style.height=s+'px';e.style.transform=`translate(${t[1]*s}px,${t[0]*s}px)`})}
+function init(){const bd=$('bd');bd.innerHTML='';$('win').style.display='none';
+pos=B.map(b=>[b[2],b[3]]);moves=0;got=[0,0,0];$('mv').textContent=0;els=[];pcs=[];
+$('tray').innerHTML=T.map((t,k)=>`<div class="slot" id="s${k}">${svg(t[2])}</div>`).join('');
+T.forEach(t=>{const e=document.createElement('div');e.className='pc';e.innerHTML=svg(t[2]);bd.appendChild(e);pcs.push(e)});
+B.forEach((b,i)=>{const e=document.createElement('div');e.className='blk';e.dataset.i=i;
+const im=new Image();
+im.src='block'+(i+1)+'.png';
+im.alt='';im.draggable=false;
+e.appendChild(im);
+bd.appendChild(e);els.push(e)});
+layout()}
+function check(){let any=0;T.forEach((t,k)=>{if(got[k])return;if(occ(-1)[t[0]][t[1]]<0){got[k]=1;any=1;pcs[k].classList.add('got');$('s'+k).classList.add('on');setTimeout(()=>pcs[k].classList.add('gone'),1200)}});
+if(got.every(Boolean))setTimeout(()=>{$('wt').textContent=`Beam, pan and counterweight recovered in ${moves} moves (par 22).`;$('win').style.display='grid'},1400)}
+const bd=$('bd');
+bd.addEventListener('pointerdown',e=>{const el=e.target.closest('.blk');if(!el)return;const i=+el.dataset.i;
+drag={i,sx:e.clientX,sy:e.clientY,ax:null,off:0,l:free(i,0,-1),r:free(i,0,1),u:free(i,-1,0),d:free(i,1,0)};el.classList.add('drag');bd.setPointerCapture(e.pointerId)});
+bd.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+if(!drag.ax&&Math.max(Math.abs(dx),Math.abs(dy))>5)drag.ax=Math.abs(dx)>Math.abs(dy)?'x':'y';
+if(!drag.ax)return;const v=drag.ax=='x'?dx:dy,lo=-(drag.ax=='x'?drag.l:drag.u)*s,hi=(drag.ax=='x'?drag.r:drag.d)*s;
+drag.off=Math.max(lo,Math.min(hi,v));drag.ax=='x'?place(drag.i,drag.off,0):place(drag.i,0,drag.off)});
+function end(){if(!drag)return;const{i,ax,off}=drag;els[i].classList.remove('drag');drag=null;if(!ax)return;
+const n=Math.round(off/s);if(n){ax=='x'?pos[i][1]+=n:pos[i][0]+=n;moves++;$('mv').textContent=moves}
+place(i);if(n)check()}
+bd.addEventListener('pointerup',end);bd.addEventListener('pointercancel',end);
+$('rs').onclick=init;addEventListener('resize',()=>{if(els)layout()});
+init();
+</script></body></html>
